@@ -16,6 +16,7 @@
 package com.google.blockly.model;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.google.blockly.android.control.BlocklyController;
 import com.google.blockly.android.control.ConnectionManager;
@@ -96,7 +97,7 @@ public class Workspace {
     }
 
     /**
-     * Remove a block from the workspace.
+     * Remove a block, it's connections, and all its children from the workspace.
      *
      * @param block The block block to remove, possibly with descendants attached.
      * @return True if the block was removed, false otherwise.
@@ -104,13 +105,62 @@ public class Workspace {
     public boolean removeRootBlock(Block block, boolean removeConnections) {
         boolean foundAndRemoved = mRootBlocks.remove(block);
         if (foundAndRemoved && removeConnections) {
-            block.getAllConnectionsRecursive(mTempConnections);
-            for (int i = 0; i < mTempConnections.size(); ++i) {
-                mConnectionManager.removeConnection(mTempConnections.get(i));
-            }
-            mTempConnections.clear();
+            removeAllConnections(block);
         }
         return foundAndRemoved;
+    }
+
+    /**
+     * Makes a shadow block and its children visible in the workspace. This will also make all of
+     * its connections valid.
+     *
+     * @param shadowBlock The block to unhide.
+     */
+    public void unhideShadowBlock(Block shadowBlock) {
+        if (!shadowBlock.isShadow()) {
+            throw new IllegalArgumentException("Only shadow blocks may be unhidden!");
+        }
+        if (shadowBlock.isHidden()) {
+            shadowBlock.getAllConnectionsRecursive(mTempConnections);
+            Log.d(TAG, "Adding " + mTempConnections.size() + " connections");
+            for (int i = 0; i < mTempConnections.size(); i++) {
+                mConnectionManager.addConnection(mTempConnections.get(i));
+            }
+            mTempConnections.clear();
+            shadowBlock.setHidden(false);
+        }
+    }
+
+    /**
+     * Makes a shadow block and all its children not visible to the workspace. This makes all of its
+     * connections invalid.
+     *
+     * @param shadowBlock The block to hide.
+     */
+    public void hideShadowBlock(Block shadowBlock) {
+        if (!shadowBlock.isShadow()) {
+            throw new IllegalArgumentException("Only shadow blocks may be hidden!");
+        }
+        if (!shadowBlock.isHidden()) {
+            removeAllConnections(shadowBlock);
+            shadowBlock.setHidden(true);
+            Log.d(TAG, "Set block " + shadowBlock + " to hidden");
+        }
+    }
+
+    /**
+     * Remove all connections for a block and its children from the workspace.
+     *
+     * @param firstBlock The block to start from.
+     */
+    private void removeAllConnections(Block firstBlock) {
+        firstBlock.getAllConnectionsRecursive(mTempConnections);
+        for (int i = 0; i < mTempConnections.size(); ++i) {
+            mConnectionManager.removeConnection(mTempConnections.get(i));
+            Log.d(TAG, "Removed " + mTempConnections.get(i) + " with block " + mTempConnections.get(i).getBlock());
+        }
+        Log.d(TAG, "Removed " + mTempConnections.size() + " connections");
+        mTempConnections.clear();
     }
 
     /**

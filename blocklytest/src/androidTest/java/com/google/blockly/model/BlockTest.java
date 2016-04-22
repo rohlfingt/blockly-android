@@ -189,6 +189,18 @@ public class BlockTest extends AndroidTestCase {
         // Statement: null child block
         parseBlockFromXml(BlockTestStrings.assembleFrankenblock("block", "12",
                 BlockTestStrings.STATEMENT_NO_CHILD), bf);
+
+
+        // Next: no previous connection on child block
+        parseBlockFromXmlFailure(BlockTestStrings.assembleFrankenblock("block", "16",
+                BlockTestStrings.NEXT_BAD_CHILD), bf);
+
+        // Next
+        parseBlockFromXml(BlockTestStrings.assembleFrankenblock("block", "17",
+                BlockTestStrings.NEXT_GOOD), bf);
+        // Next: null child block
+        parseBlockFromXml(BlockTestStrings.assembleFrankenblock("block", "18",
+                BlockTestStrings.NEXT_NO_CHILD), bf);
     }
 
     public void testLoadFromXml_shadows() throws IOException, XmlPullParserException {

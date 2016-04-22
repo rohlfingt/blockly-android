@@ -56,6 +56,8 @@ public class Block {
     private final int mColour;
     private boolean mInputsInline;
     private boolean mIsShadow;
+    // Only valid for shadow blocks. True if the block is hidden by another block.
+    private boolean mIsHidden;
 
     // These values can be changed after creating the block
     private String mTooltip;
@@ -173,10 +175,15 @@ public class Block {
         for (int i = 0; i < mConnectionList.size(); i++) {
             Connection conn = mConnectionList.get(i);
             int type = conn.getType();
+            if (type == Connection.CONNECTION_TYPE_OUTPUT
+                    || type == Connection.CONNECTION_TYPE_PREVIOUS) {
+                continue;
+            }
             Block target = conn.getTargetBlock();
-            if (type != Connection.CONNECTION_TYPE_OUTPUT
-                    && type != Connection.CONNECTION_TYPE_PREVIOUS
-                    && target != null) {
+            if (target == null) {
+                target = conn.getTargetShadowBlock();
+            }
+            if (target != null) {
                 target.getAllConnectionsRecursive(addTo);
             }
         }
@@ -308,6 +315,13 @@ public class Block {
     }
 
     /**
+     * @return The shadow block connected to this block's next connection or null.
+     */
+    public Block getNextShadowBlock() {
+        return mNextConnection == null ? null : mNextConnection.getTargetShadowBlock();
+    }
+
+    /**
      * @return The block's output Connection.
      */
     @Nullable
@@ -336,6 +350,30 @@ public class Block {
      */
     public boolean isShadow() {
         return mIsShadow;
+    }
+
+    /**
+     * Checks if this block or any of its parents are hidden. If it is, the connections should be
+     * ignored. This is only valid for shadow blocks.
+     *
+     * @return True if this block or any of its parents is hidden, false otherwise.
+     */
+    public boolean isHidden() {
+        Log.d(TAG, "isHidden()=" + mIsHidden + " for block " + this);
+        return mIsHidden || (getParentBlock() != null && getParentBlock().isHidden());
+    }
+
+    /**
+     * Sets the hidden state for this block. Only valid for shadow blocks.
+     *
+     * @param hidden True if this block is now hidden.
+     */
+    public void setHidden(boolean hidden) {
+        if (!isShadow()) {
+            throw new IllegalStateException("Cannot call set hidden on non-shadow blocks.");
+        }
+        Log.d(TAG, "Setting hidden to " + hidden + " for block " + this);
+        mIsHidden = hidden;
     }
 
     /**
@@ -479,19 +517,26 @@ public class Block {
     }
 
     /**
-     * @return The block connected to the output or previous {@link Connection}, if present.
-     *         Otherwise null.
+     * @return The connection connected to the output or previous {@link Connection}, if present.
+     *         Otherwise null. This may belong to a shadow block.
      */
-    public Block getParentBlock() {
-        Connection prev = mPreviousConnection;
-        if (prev != null) {
-            return prev.getTargetBlock();
+    public Connection getParentConnection() {
+        if (mPreviousConnection != null) {
+            return mPreviousConnection.getTargetConnection();
         }
-        Connection output = mOutputConnection;
-        if (output != null) {
-            return output.getTargetBlock();
+        if (mOutputConnection != null) {
+            return mOutputConnection.getTargetConnection();
         }
         return null;
+    }
+
+    /**
+     * @return The block connected to the output or previous {@link Connection}, if present.
+     *         Otherwise null. This may be a shadow block.
+     */
+    public Block getParentBlock() {
+        Connection parentConnection = getParentConnection();
+        return parentConnection != null ? parentConnection.getBlock() : null;
     }
 
     @VisibleForTesting
@@ -927,15 +972,32 @@ public class Block {
                     } else if (tagname.equalsIgnoreCase("comment")) {
                         resultBlock.setComment(text);
                     } else if (tagname.equalsIgnoreCase("next")) {
-                        if (resultBlock.getNextConnection() == null
-                                || childBlock.getPreviousConnection() == null) {
-                            throw new BlocklyParserException("A connection was null.");
+                        if (resultBlock.getNextConnection() == null) {
+                            throw new BlocklyParserException("The next connection was null.");
                         }
-                        if (resultBlock.getNextConnection().isConnected()) {
-                            throw new BlocklyParserException(
-                                    "Multiple next blocks were provided for the same block.");
+                        if (childBlock != null) {
+                            if (childBlock.getPreviousConnection() == null) {
+                                throw new BlocklyParserException("The child connection was null.");
+                            }
+                            if (resultBlock.getNextConnection().isConnected()) {
+                                throw new BlocklyParserException(
+                                        "Multiple next blocks were provided for the same block.");
+                            }
+                            resultBlock.getNextConnection()
+                                    .connect(childBlock.getPreviousConnection());
                         }
-                        resultBlock.getNextConnection().connect(childBlock.getPreviousConnection());
+                        if (childShadow != null) {
+                            if (childShadow.getPreviousConnection() == null) {
+                                throw new BlocklyParserException(
+                                        "The shadow block connection was null.");
+                            }
+                            if (resultBlock.getNextConnection().isShadowConnected()) {
+                                throw new BlocklyParserException(
+                                        "Multiple next shadows were provided for the same block.");
+                            }
+                            resultBlock.getNextConnection()
+                                    .connect(childShadow.getPreviousConnection());
+                        }
                     }
                     break;
 

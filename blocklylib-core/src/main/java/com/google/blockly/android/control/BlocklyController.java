@@ -391,33 +391,43 @@ public class BlocklyController {
                 : mHelper.getRootBlockGroup(block);
 
         // Child block
-        if (block.getPreviousConnection() != null
-                && block.getPreviousConnection().isConnected()) {
-            Input in = block.getPreviousConnection().getTargetConnection().getInput();
+        Connection parentConnection = block.getParentConnection();
+        if (parentConnection != null) {
+            Block shadowToUnhide = parentConnection.getTargetShadowBlock();
+            Input in = parentConnection.getInput();
             if (in == null) {
                 if (bg != null) {
                     // Next block
                     bg = bg.extractBlocksAsNewGroup(block);
+                    if (shadowToUnhide != null && originalRootBlockGroup != null) {
+                        // Restore the shadow into the block group
+                        mViewFactory.buildBlockViewTree(shadowToUnhide, originalRootBlockGroup,
+                                getWorkspace().getConnectionManager(), mTouchHandler);
+                    }
                 }
             } else {
-                // Statement input
+                // Statement or value input
                 // Disconnect view.
                 InputView inView = in.getView();
                 if (inView != null) {
+                    // Disconnect the old group
                     inView.setConnectedBlockGroup(null);
+                    // Restore the shadow if it exists as the input's BlockGroup
+                    if (shadowToUnhide != null) {
+                        BlockGroup shadowGroup = mViewFactory.buildBlockGroupTree(shadowToUnhide,
+                                getWorkspace().getConnectionManager(), mTouchHandler);
+                        // Connect the shadow group
+                        inView.setConnectedBlockGroup(shadowGroup);
+                    }
                 }
             }
-            block.getPreviousConnection().disconnect();
-        } else if (block.getOutputConnection() != null
-                && block.getOutputConnection().isConnected()) {
-            // Value input
-            Input in = block.getOutputConnection().getTargetConnection().getInput();
-            block.getOutputConnection().disconnect();
-
-            // Disconnect view.
-            InputView inView = in.getView();
-            if (inView != null) {
-                inView.setConnectedBlockGroup(null);
+            Connection myConn = block.getPreviousConnection();
+            if (myConn == null) {
+                myConn = block.getOutputConnection();
+            }
+            myConn.disconnect();
+            if (shadowToUnhide != null) {
+                mWorkspace.unhideShadowBlock(shadowToUnhide);
             }
         }
 
@@ -796,6 +806,20 @@ public class BlocklyController {
                 addRootBlock(remainderBlock, remainderGroup, false);
                 bumpBlock(inferior.getPreviousConnection(), remainderBlock.getPreviousConnection());
             }
+        } else if (superior.getNextShadowBlock() != null) {
+            Block shadowBlock = superior.getNextShadowBlock();
+            BlockView shadowView = mViewFactory.getView(shadowBlock);
+            Log.d(TAG, "Superior has a shadow block and the view is " + shadowView);
+            if (shadowView != null) {
+                // Remove shadow block views if they exist
+                BlockGroup shadowBg = superiorBlockGroup.extractBlocksAsNewGroup(shadowBlock);
+                if (shadowBg != null) {
+                    shadowBg.unlinkModel();
+                    shadowBg.removeAllViews();
+                }
+                getWorkspace().hideShadowBlock(shadowBlock);
+            }
+
         }
 
         connectAfter(superior, superiorBlockGroup, inferior, inferiorBlockGroup);
@@ -837,6 +861,17 @@ public class BlocklyController {
         InputView parentInputView = parentConn.getInputView();
         Block child = childConn.getBlock();
         BlockGroup childBlockGroup = mHelper.getParentBlockGroup(child);
+        Block shadowBlock = parentConn.getTargetShadowBlock();
+        BlockGroup shadowGroupToHide = shadowBlock == null ? null
+                : mHelper.getParentBlockGroup(shadowBlock);
+
+        if (shadowGroupToHide != null) {
+            if (parentInputView != null) {
+                parentInputView.setConnectedBlockGroup(null);
+            }
+            shadowGroupToHide.unlinkModel();
+            getWorkspace().hideShadowBlock(shadowBlock);
+        }
 
         Connection previousTargetConnection = null;
         if (parentConn.isConnected()) {

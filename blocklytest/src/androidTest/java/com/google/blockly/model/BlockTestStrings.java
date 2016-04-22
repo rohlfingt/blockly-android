@@ -186,6 +186,27 @@ public class BlockTestStrings {
             "</block>" +
             "</statement>";
 
+    public static final String NEXT_GOOD = "<next>" +
+            "<block type=\"frankenblock\" id=\"NEXT_GOOD\">" +
+            "</block>" +
+            "</next>";
+    public static final String NEXT_NO_CHILD = "<next>" +
+            "    </next>";
+    public static final String NEXT_BAD_CHILD = "<next>" +
+            "      <block type=\"no_output\" id=\"NEXT_BAD_CHILD\">" +
+            "      </block>" +
+            "    </next>";
+    public static final String NEXT_SHADOW = "<next>" +
+            "<shadow type=\"frankenblock\" id=\"NEXT_SHADOW\">" +
+            "</shadow>" +
+            "</next>";
+    public static final String NEXT_SHADOW_GOOD = "<next>" +
+            "<shadow type=\"frankenblock\" id=\"NEXT_SHADOW\">" +
+            "</shadow>" +
+            "<block type=\"frankenblock\" id=\"NEXT_REAL\">" +
+            "</block>" +
+            "</next>";
+
     public static final String COMMENT_GOOD = "<comment pinned=\"true\" h=\"80\" w=\"160\">" +
             "    Calm</comment>";
     public static final String COMMENT_NO_TEXT= "<comment pinned=\"true\" h=\"80\" w=\"160\">" +

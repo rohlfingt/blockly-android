@@ -16,6 +16,7 @@
 package com.google.blockly.android.control;
 
 import android.support.annotation.VisibleForTesting;
+import android.util.Log;
 import android.util.Pair;
 
 import com.google.blockly.model.Block;
@@ -50,6 +51,7 @@ public class ConnectionManager {
      * @param conn The connection to add.
      */
     public void addConnection(Connection conn) {
+        Log.d(TAG, "Added connection " + conn);
         matchingLists[conn.getType()].addConnection(conn);
     }
 
@@ -59,6 +61,7 @@ public class ConnectionManager {
      * @param conn The connection to remove.
      */
     public void removeConnection(Connection conn) {
+        Log.d(TAG, "Removed connection " + conn);
         matchingLists[conn.getType()].removeConnection(conn);
     }
 
@@ -129,7 +132,8 @@ public class ConnectionManager {
         if (conn.getPosition().equals(newX, newY)) {
             return;
         }
-        if (conn.inDragMode()) {
+        Log.d(TAG, "Checking conn " + conn + " with block " + conn.getBlock());
+        if (conn.inDragMode() || conn.getBlock().isHidden()) {
             conn.setPosition(newX, newY);
         } else {
             removeConnection(conn);
@@ -255,6 +259,12 @@ public class ConnectionManager {
          */
         public void addConnection(Connection conn) {
             int position = findPositionForConnection(conn);
+            Log.d(TAG, "Add index was " + position);
+            for (int i = 0; i < mConnections.size(); i++) {
+                if (mConnections.get(i) == conn) {
+                    Log.d(TAG, "Found conn " + conn + " at " + i);
+                }
+            }
             if (position < mConnections.size() && conn == mConnections.get(position)) {
                 throw new IllegalArgumentException("Already added.");
             }
@@ -268,6 +278,15 @@ public class ConnectionManager {
          */
         public void removeConnection(Connection conn) {
             int removalIndex = findConnection(conn);
+            Log.d(TAG, "Removal index was " + removalIndex);
+            for (int i = 0; i < mConnections.size(); i++) {
+                if (mConnections.get(i) == conn) {
+                    Log.d(TAG, "Found conn " + conn + " at " + i);
+                    if (removalIndex == -1) {
+                        Log.d(TAG, "Break point");
+                    }
+                }
+            }
             if (removalIndex != -1) {
                 mConnections.remove(removalIndex);
             }

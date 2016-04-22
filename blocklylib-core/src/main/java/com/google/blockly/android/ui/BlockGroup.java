@@ -170,7 +170,11 @@ public class BlockGroup extends NonPropagatingViewGroup {
             View blockView = (View) mWorkspaceHelper.getView(cur);
             from.removeView(blockView);
             this.addView(blockView);
-            cur = cur.getNextBlock();
+            Block next = cur.getNextBlock();
+            if (next == null) {
+                next = cur.getNextShadowBlock();
+            }
+            cur = next;
         }
     }
 

@@ -484,6 +484,9 @@ public class Dragger {
         // to the list; 0, 0 is a cheap place to put them.
         for (int i = 0; i < mDraggedConnections.size(); i++) {
             Connection cur = mDraggedConnections.get(i);
+            if (cur.getBlock().isHidden()) {
+                continue;
+            }
             cur.setPosition(0, 0);
             cur.setDragMode(false);
             mConnectionManager.addConnection(cur);

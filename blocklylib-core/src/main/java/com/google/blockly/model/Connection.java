@@ -112,11 +112,19 @@ public class Connection implements Cloneable {
     /**
      * Connect this to another connection. If the connection is not valid a {@link RuntimeException}
      * will be thrown.
+     * <p>
+     * If this is a superior connection ({@link #CONNECTION_TYPE_INPUT} or
+     * {@link #CONNECTION_TYPE_NEXT}) it may connect to both a normal block and a shadow block.
+     * <p>
+     * If this is an inferior connection ({@link #CONNECTION_TYPE_OUTPUT} or
+     * {@link #CONNECTION_TYPE_PREVIOUS}) it may only have one connection which can be a normal
+     * block <b>or</b> a shadow block.
      *
      * @param target The connection to connect to.
      */
     public void connect(Connection target) {
-        if (target == mTargetConnection) {
+        if (target == mTargetConnection || target == mTargetShadowConnection) {
+            // Already connected
             return;
         }
         checkConnection(target);
@@ -146,14 +154,16 @@ public class Connection implements Cloneable {
     }
 
     /**
-     * @return The {@link Block} this is connected to or null if it is not connected.
+     * @return The {@link Block} this is connected to or null if it is not connected. For inferior
+     *         connections this may return a shadow block.
      */
     public Block getTargetBlock() {
         return mTargetConnection == null ? null : mTargetConnection.getBlock();
     }
 
     /**
-     * @return The shadow {@link Block} this is connected to or null if it has no shadow block.
+     * @return The shadow {@link Block} this is connected to or null if it has no shadow block. For
+     *         inferior connections this will always return null.
      */
     public Block getTargetShadowBlock() {
         return mTargetShadowConnection == null ? null : mTargetShadowConnection.getBlock();
@@ -216,10 +226,19 @@ public class Connection implements Cloneable {
     }
 
     /**
-     * @return The Connection this is connected to.
+     * @return The Connection this is connected to. For inferior connections this may return a
+     *         connection on a shadow block.
      */
     public Connection getTargetConnection() {
         return mTargetConnection;
+    }
+
+    /**
+     * @return The Shadow connection this is connected to. For inferior connections this will always
+     *         return null.
+     */
+    public Connection getTargetShadowConnection() {
+        return mTargetShadowConnection;
     }
 
     /**
@@ -292,7 +311,7 @@ public class Connection implements Cloneable {
         if (target.getType() != OPPOSITE_TYPES[mConnectionType]) {
             return REASON_WRONG_TYPE;
         }
-        if (target.getBlock().isShadow()) {
+        if (useShadowTarget(target)) {
             if (mTargetShadowConnection != null) {
                 return REASON_MUST_DISCONNECT;
             }
@@ -322,7 +341,7 @@ public class Connection implements Cloneable {
     }
 
     private void connectInternal(Connection target) {
-        if (target.getBlock().isShadow()) {
+        if (useShadowTarget(target)) {
             mTargetShadowConnection = target;
         } else {
             mTargetConnection = target;
@@ -331,6 +350,16 @@ public class Connection implements Cloneable {
 
     private void disconnectInternal() {
         mTargetConnection = null;
+    }
+
+    /**
+     * @param target The connection we're connecting or connected to.
+     * @return True if we should look at mTargetShadowConnection for this connection.
+     */
+    private boolean useShadowTarget(Connection target) {
+        return mConnectionType != CONNECTION_TYPE_PREVIOUS
+                && mConnectionType != CONNECTION_TYPE_OUTPUT
+                && target.getBlock().isShadow();
     }
 
     @VisibleForTesting

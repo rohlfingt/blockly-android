@@ -153,18 +153,15 @@ public abstract class BlockViewFactory<BlockView extends com.google.blockly.andr
 
             if (input.getType() != Input.TYPE_DUMMY) {
                 Block targetBlock = input.getConnection().getTargetBlock();
+                if (targetBlock == null) {
+                    // If there's no real block we'll build a shadow block (if there is one).
+                    targetBlock = input.getConnection().getTargetShadowBlock();
+                }
                 if (targetBlock != null) {
                     // Blocks connected to inputs live in their own BlockGroups.
                     BlockGroup subgroup = buildBlockGroupTree(
                             targetBlock, connectionManager, touchHandler);
                     inputView.setConnectedBlockGroup(subgroup);
-                }
-                targetBlock = input.getConnection().getTargetShadowBlock();
-                if (targetBlock != null) {
-                    // Blocks connected to inputs live in their own BlockGroups.
-                    BlockGroup subgroup = buildBlockGroupTree(
-                            targetBlock, connectionManager, touchHandler);
-                    inputView.setConnectedShadowGroup(subgroup);
                 }
             }
             inputViews.add(inputView);
@@ -177,6 +174,9 @@ public abstract class BlockViewFactory<BlockView extends com.google.blockly.andr
         parentGroup.addView((View) blockView);
 
         Block next = block.getNextBlock();
+        if (next == null) {
+            next = block.getNextShadowBlock();
+        }
         if (next != null) {
             // Next blocks live in the same BlockGroup.
             buildBlockViewTree(next, parentGroup, connectionManager, touchHandler);
